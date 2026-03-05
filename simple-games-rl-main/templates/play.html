@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MERGE | Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            /* Base Colors */
+            --dark: #0f172a;
+            --text-main: #f8fafc;
+            --danger: #ef4444;
+            --panel-bg: rgba(30, 41, 59, 0.6);
+
+            /* Themed Variables (Default: Dark Slate) */
+            --board-light: #334155;
+            --board-dark: #1e293b;
+            --highlight: #38bdf8;
+            --success: #10b981;
+
+            /* Dynamics */
+            --anim-speed: 0.2s;
+        }
+
+        body {
+            margin: 0;
+            background: var(--dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            padding: 1.5rem 0;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--highlight);
+            transition: color var(--anim-speed) ease;
+        }
+
+        .container {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .setup-modal {
+            background: var(--panel-bg);
+            padding: 2rem 3rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .setup-modal button {
+            background: #1e293b;
+            color: white;
+            border: 1px solid var(--highlight);
+            padding: 0.75rem 2rem;
+            margin: 0.5rem;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all var(--anim-speed) ease;
+        }
+
+        .setup-modal button:hover {
+            background: var(--highlight);
+            color: var(--dark);
+        }
+
+        #game-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .status-bar {
+            background: #1e293b;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: color var(--anim-speed);
+        }
+
+        /* Scoreboard CSS */
+        .scoreboard {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            background: var(--panel-bg);
+            padding: 0.75rem 2.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .score-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .player-score .score-value {
+            color: var(--success);
+            transition: color var(--anim-speed) ease;
+        }
+
+        .ai-score .score-value {
+            color: var(--danger);
+        }
+
+        .score-divider {
+            font-size: 1.5rem;
+            color: #475569;
+            font-weight: bold;
+        }
+
+        /* Arena Layout (Board + Log) */
+        .arena {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            border: 4px solid var(--board-dark);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+            transition: border-color var(--anim-speed) ease;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            position: relative;
+            transition: background-color var(--anim-speed), box-shadow var(--anim-speed), border var(--anim-speed);
+            box-sizing: border-box;
+        }
+
+        .cell.light {
+            background-color: var(--board-light);
+        }
+
+        .cell.dark {
+            background-color: var(--board-dark);
+        }
+
+        .cell.drag-over {
+            background-color: var(--highlight);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .cell.valid-move {
+            background-color: color-mix(in srgb, var(--success) 25%, transparent);
+            box-shadow: inset 0 0 20px color-mix(in srgb, var(--success) 60%, transparent);
+            border: 2px dashed var(--success);
+        }
+
+        .piece {
+            cursor: grab;
+            user-select: none;
+            text-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            transition: transform calc(var(--anim-speed) / 2);
+        }
+
+        .piece:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        .white-piece {
+            color: #ffffff;
+        }
+
+        .black-piece {
+            color: #000000;
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+
+        /* History Log CSS */
+        .history-panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            width: 260px;
+            height: 308px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .history-header {
+            background: #1e293b;
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--highlight);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: color var(--anim-speed) ease;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .history-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .history-list::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.4);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: 'Orbitron', monospace;
+            animation: slideIn var(--anim-speed) ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-player-w {
+            color: #f8fafc;
+            border-left: 3px solid #f8fafc;
+        }
+
+        .log-player-b {
+            color: #94a3b8;
+            border-left: 3px solid #000000;
+        }
+
+        .log-turn {
+            color: #64748b;
+            font-size: 0.75rem;
+            width: 20px;
+        }
+
+        .log-move {
+            flex: 1;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            background: transparent;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .reset-btn {
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .reset-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .switch-btn {
+            color: var(--highlight);
+            border: 1px solid var(--highlight);
+            background: color-mix(in srgb, var(--highlight) 10%, transparent);
+        }
+
+        .switch-btn:hover {
+            background: var(--highlight);
+            color: var(--dark);
+        }
+
+        .settings-btn {
+            color: #cbd5e1;
+            border: 1px solid #cbd5e1;
+        }
+
+        .settings-btn:hover {
+            background: #cbd5e1;
+            color: var(--dark);
+        }
+
+        /* Toggle Switch */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--success);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Settings Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-content {
+            background: var(--dark);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .settings-content h3 {
+            margin: 0;
+            color: var(--highlight);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .setting-group label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .setting-group select {
+            background: #1e293b;
+            color: white;
+            border: 1px solid #475569;
+            padding: 0.6rem;
+            border-radius: 6px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .setting-group select:focus {
+            border-color: var(--highlight);
+        }
+
+        .close-modal-btn {
+            background: var(--highlight);
+            color: var(--dark);
+            border: none;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .close-modal-btn:hover {
+            filter: brightness(1.1);
+        }
+    </style>
+</head>
+
+<body>
+    <header>MERGE ENGINE</header>
+
+    <div class="container">
+        <div id="setup" class="setup-modal">
+            <h2>Select Your Side</h2>
+            <button onclick="initialStart('W')">Play as White</button>
+            <button onclick="initialStart('B')">Play as Black</button>
+        </div>
+
+        <div id="game-area">
+            <div id="status" class="status-bar">Awaiting initialization...</div>
+
+            <div class="scoreboard" id="scoreboard">
+                <div class="score-box player-score">
+                    <span class="score-label">You</span>
+                    <span class="score-value" id="score-player">0</span>
+                </div>
+                <div class="score-divider">:</div>
+                <div class="score-box ai-score">
+                    <span class="score-label">AI Engine</span>
+                    <span class="score-value" id="score-ai">0</span>
+                </div>
+            </div>
+
+            <div class="arena">
+                <div class="board">
+                    <div class="cell dark" id="a3"></div>
+                    <div class="cell light" id="b3"></div>
+                    <div class="cell dark" id="c3"></div>
+                    <div class="cell light" id="a2"></div>
+                    <div class="cell dark" id="b2"></div>
+                    <div class="cell light" id="c2"></div>
+                    <div class="cell dark" id="a1"></div>
+                    <div class="cell light" id="b1"></div>
+                    <div class="cell dark" id="c1"></div>
+                </div>
+
+                <div class="history-panel">
+                    <div class="history-header">Match Log</div>
+                    <div class="history-list" id="history-list"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="toggle-wrapper">
+                    <label class="switch">
+                        <input type="checkbox" id="auto-restart" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span>Auto-Restart</span>
+                </div>
+                <button class="btn switch-btn" onclick="switchSides()">Playing: <span
+                        id="current-side-label">White</span></button>
+                <button class="btn settings-btn" onclick="openSettings()">⚙️ Settings</button>
+                <button class="btn reset-btn" onclick="location.reload()">Forfeit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="settings-content">
+            <h3>Engine Settings</h3>
+
+            <div class="setting-group">
+                <label for="theme-select">Board Theme</label>
+                <select id="theme-select" onchange="applySettings()">
+                    <option value="default">Dark Slate (Default)</option>
+                    <option value="classic">Classic Wood</option>
+                    <option value="cyberpunk">Cyberpunk Neon</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label for="speed-select">Animation Speed</label>
+                <select id="speed-select" onchange="applySettings()">
+                    <option value="0.1s">Snappy</option>
+                    <option value="0.2s" selected>Smooth (Default)</option>
+                    <option value="0.5s">Cinematic</option>
+                </select>
+            </div>
+
+            <button class="close-modal-btn" onclick="closeSettings()">Done</button>
+        </div>
+    </div>
+
+    <script>
+        let gameID = null;
+        let mySide = 'W';
+        let currentTurn = 'W';
+        let currentBoardState = {};
+
+        let winsPlayer = 0;
+        let winsAI = 0;
+        let restartTimer = null;
+        let moveCounter = 1;
+
+        const statusEl = document.getElementById('status');
+        const setupEl = document.getElementById('setup');
+        const gameAreaEl = document.getElementById('game-area');
+        const autoRestartToggle = document.getElementById('auto-restart');
+
+        const scorePlayerEl = document.getElementById('score-player');
+        const scoreAIEl = document.getElementById('score-ai');
+        const currentSideLabel = document.getElementById('current-side-label');
+        const historyListEl = document.getElementById('history-list');
+
+        /* --- Settings Logic --- */
+        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+        function applySettings() {
+            const theme = document.getElementById('theme-select').value;
+            const speed = document.getElementById('speed-select').value;
+            const root = document.documentElement;
+
+            root.style.setProperty('--anim-speed', speed);
+
+            if (theme === 'default') {
+                root.style.setProperty('--board-light', '#334155');
+                root.style.setProperty('--board-dark', '#1e293b');
+                root.style.setProperty('--highlight', '#38bdf8');
+                root.style.setProperty('--success', '#10b981');
+            } else if (theme === 'classic') {
+                root.style.setProperty('--board-light', '#f0d9b5');
+                root.style.setProperty('--board-dark', '#b58863');
+                root.style.setProperty('--highlight', '#f59e0b');
+                root.style.setProperty('--success', '#22c55e');
+            } else if (theme === 'cyberpunk') {
+                root.style.setProperty('--board-light', '#2d00f7');
+                root.style.setProperty('--board-dark', '#0b0033');
+                root.style.setProperty('--highlight', '#f20089');
+                root.style.setProperty('--success', '#00f5d4');
+            }
+        }
+        /* ----------------------- */
+
+        function initialStart(side) {
+            setupEl.style.display = 'none';
+            gameAreaEl.style.display = 'flex';
+            startGame(side);
+        }
+
+        async function startGame(side) {
+            mySide = side;
+            currentSideLabel.innerText = mySide === 'W' ? 'White' : 'Black';
+            setStatus("Initializing engine...", "#94a3b8");
+
+            historyListEl.innerHTML = '';
+            moveCounter = 1;
+
+            try {
+                const res = await fetch('/play_drag/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_side: side })
+                });
+                const data = await res.json();
+                gameID = data.gameID;
+                currentTurn = data.turn;
+                currentBoardState = data.board;
+                renderBoard(data.board);
+
+                if (side === 'B' && data.message.includes("Computer played")) {
+                    const match = data.message.match(/Computer played ([a-c][1-3])([a-c][1-3])/);
+                    if (match) addLogEntry('W', match[1], match[2]);
+                }
+
+                if (data.message === "Game Over") {
+                    handleGameOver("Black");
+                } else {
+                    updateStatus(data.message, data.turn);
+                }
+            } catch (err) {
+                setStatus("Connection Error.", "var(--danger)");
+            }
+        }
+
+        async function makeMove(from, to) {
+            setStatus("AI is calculating...", "#f59e0b");
+            try {
+                const res = await fetch('/play_drag/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gameID, from, to })
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    setStatus(data.error, "var(--danger)");
+                    return;
+                }
+
+                if (data.human_move) {
+                    addLogEntry(mySide, data.human_move.substring(0, 2), data.human_move.substring(2, 4));
+                }
+
+                currentBoardState = data.board;
+                renderBoard(data.board);
+
+                if (data.computer_move) {
+                    const aiSide = mySide === 'W' ? 'B' : 'W';
+                    addLogEntry(aiSide, data.computer_move.substring(0, 2), data.computer_move.substring(2, 4));
+                }
+
+                if (data.winner) {
+                    handleGameOver(data.winner === 'white' ? 'White' : 'Black');
+                } else {
+                    currentTurn = data.turn;
+                    updateStatus(data.message, currentTurn);
+                }
+            } catch (err) {
+                setStatus("Network Error.", "var(--danger)");
+            }
+        }
+
+        function addLogEntry(playerCode, fromSq, toSq) {
+            const entry = document.createElement('div');
+            const styleClass = playerCode === 'W' ? 'log-player-w' : 'log-player-b';
+            const icon = playerCode === 'W' ? '♙' : '♟';
+
+            entry.className = `history-item ${styleClass}`;
+            entry.innerHTML = `<span class="log-turn">${moveCounter}.</span><span class="log-move">${icon} ${fromSq} &rarr; ${toSq}</span>`;
+
+            historyListEl.appendChild(entry);
+            historyListEl.scrollTop = historyListEl.scrollHeight;
+            moveCounter++;
+        }
+
+        function handleGameOver(winnerText) {
+            currentTurn = null;
+            const isPlayerWin = (winnerText.charAt(0) === mySide);
+            const winColor = isPlayerWin ? 'var(--success)' : 'var(--danger)';
+
+            if (isPlayerWin) {
+                winsPlayer++;
+                scorePlayerEl.innerText = winsPlayer;
+            } else {
+                winsAI++;
+                scoreAIEl.innerText = winsAI;
+            }
+
+            setStatus(`Match Concluded. Winner: ${winnerText}`, winColor);
+
+            if (autoRestartToggle.checked) {
+                setStatus(`Match Concluded. Winner: ${winnerText}. Restarting...`, winColor);
+                if (restartTimer) clearTimeout(restartTimer);
+                restartTimer = setTimeout(() => {
+                    startGame(mySide);
+                }, 2000);
+            }
+        }
+
+        function switchSides() {
+            if (restartTimer) clearTimeout(restartTimer);
+            const newSide = mySide === 'W' ? 'B' : 'W';
+            startGame(newSide);
+        }
+
+        function getValidMoves(board, pos, player) {
+            const moves = [];
+            const files = ['a', 'b', 'c'];
+            const file = pos[0]; const rank = parseInt(pos[1]); const fileIdx = files.indexOf(file);
+
+            if (player === 'W') {
+                const forward = file + (rank + 1);
+                if (rank + 1 <= 3 && !board[forward]) moves.push(forward);
+                for (const diff of [-1, 1]) {
+                    if (fileIdx + diff >= 0 && fileIdx + diff < 3) {
+                        const diag = files[fileIdx + diff] + (rank + 1);
+                        if (board[diag] === 'B') moves.push(diag);
+                    }
+                }
+            } else if (player === 'B') {
+                const forward = file + (rank - 1);
+                if (rank - 1 >= 1 && !board[forward]) moves.push(forward);
+                for (const diff of [-1, 1]) {
+                    if (fileIdx + diff >= 0 && fileIdx + diff < 3) {
+                        const diag = files[fileIdx + diff] + (rank - 1);
+                        if (board[diag] === 'W') moves.push(diag);
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('valid-move', 'drag-over'));
+        }
+
+        function renderBoard(board) {
+            document.querySelectorAll('.cell').forEach(cell => cell.innerHTML = '');
+            for (const [pos, piece] of Object.entries(board)) {
+                const cell = document.getElementById(pos);
+                if (cell) {
+                    const p = document.createElement('div');
+                    p.className = `piece ${piece === 'W' ? 'white-piece' : 'black-piece'}`;
+                    p.innerHTML = piece === 'W' ? '♙' : '♟';
+
+                    if (piece === mySide && currentTurn === mySide) {
+                        p.draggable = true;
+                        p.addEventListener('dragstart', (e) => {
+                            e.dataTransfer.setData('text/plain', pos);
+                            setTimeout(() => p.style.opacity = '0.5', 0);
+
+                            const validTargets = getValidMoves(currentBoardState, pos, mySide);
+                            validTargets.forEach(target => {
+                                const tCell = document.getElementById(target);
+                                if (tCell) tCell.classList.add('valid-move');
+                            });
+                        });
+                        p.addEventListener('dragend', () => {
+                            p.style.opacity = '1';
+                            clearHighlights();
+                        });
+                    }
+                    cell.appendChild(p);
+                }
+            }
+        }
+
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (currentTurn === mySide && cell.classList.contains('valid-move')) {
+                    cell.classList.add('drag-over');
+                }
+            });
+            cell.addEventListener('dragleave', () => { cell.classList.remove('drag-over'); });
+            cell.addEventListener('drop', e => {
+                e.preventDefault();
+                const from = e.dataTransfer.getData('text/plain');
+                const to = cell.id;
+                clearHighlights();
+                if (from && from !== to && currentTurn === mySide) {
+                    const validTargets = getValidMoves(currentBoardState, from, mySide);
+                    if (validTargets.includes(to)) {
+                        makeMove(from, to);
+                    } else {
+                        setStatus("Invalid move attempted.", "var(--danger)");
+                    }
+                }
+            });
+        });
+
+        function setStatus(msg, color = "var(--text-main)") {
+            statusEl.innerText = msg;
+            statusEl.style.color = color;
+        }
+
+        function updateStatus(msg, turn) {
+            if (turn === mySide) {
+                setStatus("Your Move", "var(--highlight)");
+            } else {
+                setStatus(msg, "#f59e0b");
+            }
+        }
+    </script>
+</body>
+
+</html>
